@@ -1,0 +1,39 @@
+name: Test Cluster
+
+on: [push]
+
+jobs:
+  test-cluster:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Container Image
+        run: docker build -t hello-world:v1.0.0 .
+
+      - name: Create Cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.20.0"
+          name: static
+          config: cluster.yml
+
+      - name: Load Container Image
+        run: kind load docker-image hello-world:v1.0.0 --name static
+
+      - name: Create Deployment
+        run: kubectl apply -f site-deployment.yml
+
+      - name: Check Deployment
+        run: kubectl wait --for=condition=Available=True deployments --all
+
+      - name: Create Service
+        run: kubectl apply -f site-service.yml
+
+      - name: Check Service
+        run: sleep 3 && curl localhost:30950
